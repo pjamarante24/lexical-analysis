@@ -1,4 +1,5 @@
 const fs = require("fs");
+const path = require("path");
 
 const Token = {
   BooleanLiteral: "Boolean",
@@ -13,7 +14,7 @@ const Token = {
 
 class Character {
   static isWhiteSpace(character) {
-    return character?.match(/\s/);
+    return character?.match(/ +?/);
   }
 
   static isIdentifierStart(character) {
@@ -31,6 +32,11 @@ class Character {
   static isDecimalDigit(character) {
     return character?.match(/[0-9]/);
   }
+
+  static isLineTerminator(character) {
+    const cp = character.charCodeAt(0);
+    return cp === 0x0a || cp === 0x0d || cp === 0x2028 || cp === 0x2029;
+  }
 }
 
 // La clase Scanner actua como Automata,
@@ -41,6 +47,7 @@ class Scanner {
     this.source = source;
     this.index = 0;
     this.length = source.length;
+    this.lineNumber = source.length > 0 ? 1 : 0;
   }
 
   throwUnexpectedToken() {
@@ -122,7 +129,10 @@ class Scanner {
     while (!this.eof()) {
       const ch = this.source[this.index];
       if (Character.isWhiteSpace(ch)) ++this.index;
-      else break;
+      else if (Character.isLineTerminator(ch)) {
+        ++this.index;
+        ++this.lineNumber;
+      } else break;
     }
   }
 
@@ -175,6 +185,7 @@ class Scanner {
     return {
       type: Token.Punctuator,
       value: str,
+      lineNumber: this.lineNumber,
     };
   }
 
@@ -205,6 +216,7 @@ class Scanner {
     return {
       type,
       value: id,
+      lineNumber: this.lineNumber,
     };
   }
 
@@ -243,6 +255,7 @@ class Scanner {
     return {
       type: Token.NumericLiteral,
       value: parseFloat(num),
+      lineNumber: this.lineNumber,
     };
   }
 
@@ -274,6 +287,7 @@ class Scanner {
     return {
       type: Token.StringLiteral,
       value: str,
+      lineNumber: this.lineNumber,
     };
   }
 
@@ -346,7 +360,9 @@ class Lex {
 
 const start = () => {
   const lex = new Lex();
-  const program = fs.readFileSync("./code.js", { encoding: "utf-8" });
+  const program = fs.readFileSync(path.resolve(__dirname, "./code.js"), {
+    encoding: "utf-8",
+  });
   const result = lex.tokenize(program);
   console.table(result);
 };
